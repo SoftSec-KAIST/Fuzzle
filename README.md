@@ -124,7 +124,7 @@ the output directory.
 
 ## Artifact
 
-We publicize the artifacts to reproduce the experiments in our paper. Please
+We publicize the artifacts to help reproduce the experiments in our paper. Please
 check our [Fuzzle-Artifact](https://github.com/SoftSec-KAIST/Fuzzle-artifact)
 repository.
 
