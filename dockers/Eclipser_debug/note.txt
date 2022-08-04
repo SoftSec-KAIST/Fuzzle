@@ -1,0 +1,10 @@
+Build docker image with build_docker.sh
+
+Make docker container: docker run -m=8g --cpuset-cpus=* -it -d maze-eclipser-debug
+*one cpu core
+
+Inside the docker container:
+
+Use script "run.sh" in /home/maze/tools to run and collect coverage info
+
+or "run_eclipser.sh" to run only 
