@@ -34,7 +34,7 @@ $ ./scripts/generate.sh -a Wilsons -w 10 -h 10 -g default_gen -o <OUT_PATH>
 ```
 
 A new program can be generated using the same maze but with realistic
-constraints obtained from previous CVEs (e.g. CVE-2016-4487).
+constraints obtained from previous CVEs (e.g., CVE-2016-4487).
 
 ```
 $ ./scripts/generate.sh -a Wilsons -w 10 -h 10 -g CVE_gen -s ./CVEs/CVE-2016-4487.smt2 -o <OUT_PATH>
@@ -109,7 +109,7 @@ algorithms will be displayed on screen.
 ### Visualizing coverage results
 
 You can also visualize the code coverage results in the form of 2D maze, where
-each cell represents a function in the program. The script for visuaization
+each cell represents a function in the program. The script for visualization
 takes maze array (.txt), coverage results (.gcov), and maze size as input and
 returns a png file.
 
@@ -127,3 +127,16 @@ the output directory.
 We publicize the artifacts to reproduce the experiments in our paper. Please
 check our [Fuzzle-Artifact](https://github.com/SoftSec-KAIST/Fuzzle-artifact)
 repository.
+
+## Citation
+
+If you use Fuzzle in scientific work, consider citing our paper:
+
+```bibtex
+@INPROCEEDINGS{lee:ase:2022,
+  author = {Haeun Lee and Soomin Kim and Sang Kil Cha},
+  title = {{Fuzzle}: Making a Puzzle for Fuzzers},
+  booktitle = {Proceedings of the International Conference on Automated Software Engineering},
+  year = 2022
+}
+```
