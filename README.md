@@ -1,10 +1,9 @@
 # Fuzzle
-Fuzzle: Making a Puzzle for Fuzzers (ASE'22)
-# Fuzzle
 
 Fuzzle is a bug synthesizer that generates buggy benchmarks for evaluating
 fuzzers. Fuzzle uses randomly created mazes and path constraints from previous
-CVEs to generate subject programs. The details of Fuzzle can be found in our paper "Fuzzle: Making a Puzzle for Fuzzers" (ASE'22).
+CVEs to generate subject programs. The details of Fuzzle can be found in our
+paper "Fuzzle: Making a Puzzle for Fuzzers" (ASE 2022).
 
 ## Installation
 
