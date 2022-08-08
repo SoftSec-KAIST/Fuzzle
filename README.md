@@ -47,7 +47,8 @@ To generate multiple programs for building a large benchmark, you can use
 `generate_benchmark.py` as follows:
 
 ```
-$ python3 ./scripts/generate_benchmark.py <FILE_PATH> <OUT_PATH>
+$ cd scripts
+$ python3 generate_benchmark.py <FILE_PATH> <OUT_PATH>
 ```
 You need to provide a path to the file that specifies the configuration of
 programs to be generated. The template for the configuration of a program is:
