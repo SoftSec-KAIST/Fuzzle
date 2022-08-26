@@ -1,0 +1,7 @@
+title: Coverage Animation
+description: The visualization feature of Fuzzle.
+show_downloads: false
+google_analytics:
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+- jekyll-remote-theme 
