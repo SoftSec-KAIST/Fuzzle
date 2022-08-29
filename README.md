@@ -26,13 +26,14 @@ For more detailed installation instructions, please see  `INSTALL.md`.
 
 ## Usage
 
-For a quick tutorial on how to use Fuzzle, please skip to [tutorial](#tutorial).
+For a quick tutorial on how to use Fuzzle, please skip to the
+[tutorial](#tutorial).
 
 ### Generating a benchmark
 
-You can generate a buggy benchmark using `generate.sh` in scripts directory. You
-need to specify values for the following parameters using the command line
-arguments:
+You can generate a buggy benchmark using `generate.sh` in the `scripts`
+directory. You need to specify values for the following parameters using the
+command line arguments:
 - Maze generation algorithm (`-a`): Backtracking, Kruskal, Prims, Wilsons,
   Sidewinder
 - Width of the maze (`-w`): any integer greater than 2
@@ -56,7 +57,7 @@ $ ./scripts/generate.sh -a Wilsons -w 10 -h 10 -o <OUT_PATH>
 ```
 
 A different program can be generated using the same maze but with realistic
-constraints obtained from previous CVE (e.g., CVE-2016-4487).
+constraints obtained from the previous CVE (e.g., CVE-2016-4487).
 
 ```
 $ ./scripts/generate.sh -a Wilsons -w 10 -h 10 -g CVE_gen -s ./CVEs/CVE-2016-4487.smt2 -o <OUT_PATH>
@@ -69,7 +70,7 @@ After the script finishes running, the output directory specified with
 - `bin`: contains compiled binaries of generated programs
 - `txt`: contains array form of mazes used in generating programs
 - `png`: contains images (.png files) of mazes used in generating programs
-- `sln`: contains shortest solution path for each maze
+- `sln`: contains the shortest solution path for each maze
 
 
 ### Generating a large benchmark
@@ -78,7 +79,8 @@ To generate multiple programs for building a large benchmark, you can use
 `generate_benchmark.py` as follows:
 
 ```
-$ python3 ./scripts/generate_benchmark.py <FILE_PATH> <OUT_PATH>
+$ cd scripts
+$ python3 ./generate_benchmark.py <FILE_PATH> <OUT_PATH>
 ```
 
 Here, `<FILE_PATH>` is a path to the file that specifies the configuration of
@@ -116,14 +118,15 @@ An example of the configuration file (`<CONFIG_FILE>`) is provided below.
 }
 ```
 
-- `MazeList`: path to list of programs in the benchmark
+- `MazeList`: path to the list of programs in the benchmark
 - `Repeats`: number of repeats for each fuzzer
 - `Duration`: length of fuzzing campaign in minutes
 - `MazeDir`: path to a directory that contains benchmark programs
-- `Tools`: one or more of the available fuzzers (`afl`, `afl++`, `aflgo`, `eclipser`, `fuzzolic`)
+- `Tools`: one or more of the available fuzzers (`afl`, `afl++`, `aflgo`,
+  `eclipser`, `fuzzolic`)
 
 Note that all paths (`MazeList` and `MazeDir`) should be either absolute paths
-or relative paths from `scripts` directory.
+or relative paths from the `scripts` directory.
 
 More examples of configuration files are provided under `examples` directory.
 Running each example should take about 1 hour each. Please refer to
@@ -152,7 +155,7 @@ fuzzing duration. For example, by running:
 $ ./scripts/save_results.sh <FUZZ_OUT> <FILE_PATH> Algorithm 24 paper
 ```
 each fuzzer's performance after 24 hours across different maze generation
-algorithms will be displayed on screen.
+algorithms will be displayed on the screen.
 
 - `<PARAM>`: one of four parameters of Fuzzle (`Algorithm`, `Size`, `Cycle`, `Generator`)
 - `<DURATION>`: length of fuzzing campaign in hours
@@ -170,7 +173,7 @@ returns a png file.
 $ python3 ./scripts/visualize.py <TXT_PATH> <COV_PATH> <OUT_PATH> <SIZE>
 ```
 - `<TXT_PATH>`: path to .txt file for the chosen maze. Note that such files are
-  automatically created under `txt` directory when generating a benchmark.
+  automatically created under the `txt` directory when generating a benchmark.
 - `<COV_PATH>`: path to .gcov file that contains coverage information. The
   script for running fuzzers (`run_tools.py`) saves hourly coverage results in
 the output directory.
@@ -181,7 +184,7 @@ There are 3 sets of examples (`example#.list` and `example#.conf`) each of which
 takes about 1 hour to run.
 
 To generate the benchmark and test the fuzzers using these examples, run the
-following commands from `scripts` directory:
+following commands from the `scripts` directory:
 
 ```
 $ python3 ./generate_benchmark.py ../examples/example#.list ../examples/example#_benchmark
@@ -191,39 +194,39 @@ $ cat ../examples/example#_outputs/example#_summary
 ```
 
 Note that you should replace # with the example number. Also, you should use the
-matching pair to the run the experiment. For example, if you used
-`example1.list` to generate the benchmark, you should use `example1.conf` to run
-the fuzzers.
+matching pair to run the experiment. For example, if you used `example1.list` to
+generate the benchmark, you should use `example1.conf` to run the fuzzers.
 
-Because each example varies different parameter, `<PARAM>` for `save_results.sh`
-script is specific to each example.
+Because each example varies different parameters, `<PARAM>` for
+`save_results.sh` script is specific to each example.
 
 - For example 1: `Algorithm`
 - For example 2: `Size`
 - For example 3: `Generator`
 
-The fuzzing results for each experiment will be saved in `example#_outputs`
+The fuzzing results for each experiment will be saved in the `example#_outputs`
 directory.
 
 ### Tutorial
 
 In this tutorial, we will generate a benchmark consisting of 5 programs and run
 AFL on the generated benchmark for 5 minutes per program. We will then visualize
-the coverage results from the fuzzing campaigns using Fuzzle.
+the coverage results from one of the fuzzing campaigns using Fuzzle.
 
 1. Generate the benchmark with:
 ```
 $ cd scripts
 $ python3 ./generate_benchmark.py ../tutorial/programs.list ../tutorial/benchmark
 ```
-Note that programs.list contains the configurations of 5 programs to generate.
+Note that `programs.list` contains the configurations of 5 programs to be
+generated.
 
 2. Run AFL:
 ```
 $ python3 ./run_tools.py ../tutorial/run.conf ../tutorial/outputs
 ```
-The run.conf file specifies the path to the generated benchmark, duration of
-fuzzing run (5 minutes), and the fuzzer to run (AFL). This step will take
+The `run.conf` file specifies the path to the generated benchmark, the duration
+of fuzzing run (5 minutes), and the fuzzer to run (AFL). This step will take
 approximately 1 hour.
 
 3. Store and visualize results:
@@ -234,15 +237,14 @@ $ PATH_TO_TXT=../tutorial/benchmark/txt/Wilsons_20x20_1_1.txt
 $ PATH_TO_COV=../tutorial/outputs/cov_gcov_Wilsons_20x20_1_1_25percent_default_gen_afl_0/Wilsons_20x20_1_1_25percent_default_gen_afl_0.c.gcov
 $ python3 ./visualize.py $PATH_TO_TXT $PATH_TO_COV ../tutorial/wilsons 20
 ```
-The fuzzing results will be stored in results.csv and the summary of results
-will be printed out to the screen.  You can also check the visual aid generated
-(`wilsons.png`) in the tuturial directory.
+The fuzzing results will be stored in `results.csv` and the summary of results
+will be printed out to the screen. You can also check the visual aid generated
+(`wilsons.png`) in the `tutorial` directory.
 
 ## Artifact
 
 We publicize the artifacts to help reproduce the experiments in our paper. Please
-check our [Fuzzle-Artifact](https://github.com/SoftSec-KAIST/Fuzzle-artifact)
-repository.
+check our [Fuzzle-Artifact](https://doi.org/10.5281/zenodo.7031393) repository.
 
 ## Citation
 
