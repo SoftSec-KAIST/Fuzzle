@@ -13,13 +13,15 @@ To build Fuzzle and setup the docker and python environment, run the following:
 $ git clone https://github.com/SoftSec-KAIST/Fuzzle
 $ cd Fuzzle
 
-# Build docker images
+# Build docker images (may take a few hours to complete)
 $ ./scripts/build_all_dockers.sh
 
 # Install the dependencies
-$ python3 -m pip install -r ../maze-gen/requirements.txt
+$ python3 -m pip install -r ./maze-gen/requirements.txt
 ```
-Note that you need python 3.7+ to generate benchmark programs using Fuzzle.
+Note that you need python 3.7+ and z3 solver to generate benchmark programs using Fuzzle.
+
+For more detailed installation instructions, please see  `INSTALL.md`.
 
 ## Usage
 
@@ -70,7 +72,7 @@ Wilsons,10,10,1,1,100percent,CVE-2016-4487_gen
 To run fuzzers on the generated benchmark in a separate docker container:
 
 ```
-$ python ./scripts/run_tools.py <CONFIG_FILE> <FUZZ_OUT>
+$ python3 ./scripts/run_tools.py <CONFIG_FILE> <FUZZ_OUT>
 ```
 
 The configuration file (`<CONFIG_FILE>`) should include path to subject
