@@ -66,7 +66,7 @@ Measure:        Coverage (%)
 Tool            Algorithm
                 Wilsons
 --------------------------------
-afl             18.8
+afl             40.0
 --------------------------------
 
 Measure:        Bugs (%)

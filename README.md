@@ -42,11 +42,11 @@ command line arguments:
 
 You can optionally specify the following parameters:
 - Pseudorandom seed (`-r`): any integer between 0 and 2^32 - 1
-- Percentage of cycles (`-c`): any number between 0 and 100
+- Percentage of cycles (`-c`): any integer between 0 and 100
 - Maze exit (`-e`): default or random
 - Generator (`-g`): default_gen or CVE_gen
 
-Note if you use CVE_gen for the generator, you must also provide a path to SMT
+Note, if you use CVE_gen for the generator, you must also provide a path to SMT
 file with `-s` option.
 
 For example, the following command generates a default program based on a 10x10
@@ -69,7 +69,7 @@ After the script finishes running, the output directory specified with
 - `src`: contains C source code of generated programs
 - `bin`: contains compiled binaries of generated programs
 - `txt`: contains array form of mazes used in generating programs
-- `png`: contains images (.png files) of mazes used in generating programs
+- `png`: contains images (.png files) of mazes used
 - `sln`: contains the shortest solution path for each maze
 
 
@@ -129,7 +129,7 @@ Note that all paths (`MazeList` and `MazeDir`) should be either absolute paths
 or relative paths from the `scripts` directory.
 
 More examples of configuration files are provided under `examples` directory.
-Running each example should take about 1 hour each. Please refer to
+Running each example should take about 1 hour. Please refer to
 [Examples](#examples) section for more details.
 
 After the experiment is finished, the output directory (`<FUZZ_OUT>`) will
@@ -226,7 +226,7 @@ generated.
 $ python3 ./run_tools.py ../tutorial/run.conf ../tutorial/outputs
 ```
 The `run.conf` file specifies the path to the generated benchmark, the duration
-of fuzzing run (5 minutes), and the fuzzer to run (AFL). This step will take
+of the fuzzing run (5 minutes), and the fuzzer to run (AFL). This step will take
 approximately 1 hour.
 
 3. Store and visualize results:
