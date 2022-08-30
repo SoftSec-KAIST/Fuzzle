@@ -3,7 +3,7 @@
 ## Requirements
 
 - Linux with Python 3.7+
-- z3 solver
+- Z3 solver
 
 ## Clone repository
 
@@ -23,12 +23,20 @@ To install dependencies for generating benchmarks, run the following from
 $ python3 -m pip install -r ./maze-gen/requirements.txt
 ```
 
-Additionally, you will need to have z3 solver installed for handling .smt2 files
-from CVEs. Below are the instructions for installing z3 on Ubuntu 20.04.
+Additionally, you will need to have Z3 solver installed for handling .smt2 files
+from CVEs. Below are the instructions for installing Z3 solver using pySMT's
+install command. Note that pySMT should have been installed in the previous
+step as one of the dependencies for Fuzzle.
 
 ```
-$ sudo apt update
-$ sudo apt -y install z3
+$ pysmt-install --z3
+```
+
+To check that the solver was installed correctly, you can use the following
+command:
+
+```
+$ pysmt-install --check
 ```
 
 ## Building Docker Images

@@ -19,7 +19,7 @@ $ ./scripts/build_all_dockers.sh
 # Install the dependencies
 $ python3 -m pip install -r ./maze-gen/requirements.txt
 ```
-Note that you need python 3.7+ and z3 solver to generate benchmark programs
+Note that you need python 3.7+ and Z3 solver to generate benchmark programs
 using Fuzzle.
 
 For more detailed installation instructions, please see  `INSTALL.md`.
