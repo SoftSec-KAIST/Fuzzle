@@ -127,34 +127,34 @@ def render_program(c_file, maze, maze_funcs, width, height, generator, sln, smt_
     "#include <unistd.h>\n" \
     "#include <stdint.h>\n")
     f.write("""#define MAX_LIMIT {}\n\n""".format(total_bytes))
-    function_format_declaration = """void func_{}(char *input, int index, int length);\n"""
+    function_format_declaration = """void func_{}(signed char *input, int index, int length);\n"""
     function_declarations = ""
     for k in range(width*height):
         function_declarations += function_format_declaration.format(k)
     f.write(function_declarations)
-    f.write("""void func_start(char *input, int index, int length){}\n""")
-    f.write("""void func_bug(char *input, int index, int length){{ {} }}\n""".format(bug))
+    f.write("""void func_start(signed char *input, int index, int length){}\n""")
+    f.write("""void func_bug(signed char *input, int index, int length){{ {} }}\n""".format(bug))
     f.write(logic_def)
-    f.write("""char* copy_input(char *input, int index, int bytes_to_use){
-    char *copy;
-    copy = (char*)malloc(bytes_to_use);
+    f.write("""signed char* copy_input(signed char *input, int index, int bytes_to_use){
+    signed char *copy;
+    copy = (signed char*)malloc(bytes_to_use);
     if (copy == NULL){
     \tprintf("Failed memory allocation");
     \texit(1);
     }
     memcpy(copy, input + index, bytes_to_use);
-    return (char*)copy;\n}\n""")
-    f.write("""int is_within_limit(char *input, int index, int bytes_to_use, int length){
+    return (signed char*)copy;\n}\n""")
+    f.write("""int is_within_limit(signed char *input, int index, int bytes_to_use, int length){
     if (index + (bytes_to_use - 1) >= MAX_LIMIT || index + (bytes_to_use - 1) >= length){
     \treturn 0;
     } else {
     \treturn 1;
     }\n}\n""")
 
-    function_begin_format = """void func_{}(char *input, int index, int length){{
+    function_begin_format = """void func_{}(signed char *input, int index, int length){{
     int bytes_to_use = {};
     if (is_within_limit(input, index, bytes_to_use, length)){{
-    \tchar *copy;
+    \tsigned char *copy;
     \tcopy = copy_input(input, index, bytes_to_use);\n {}
     \tfree(copy);
     \tcopy = NULL;
@@ -188,7 +188,7 @@ def render_program(c_file, maze, maze_funcs, width, height, generator, sln, smt_
         f.write(function_end)
 
     f.write("""int main(){{
-    char input[MAX_LIMIT];
+    signed char input[MAX_LIMIT];
     int input_length = read(0, input, MAX_LIMIT);
     int index = 0;
     func_{}(input, index, input_length);\n}}\n""".format(maze_funcs[(0, 0)]))
