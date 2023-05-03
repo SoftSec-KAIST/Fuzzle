@@ -16,7 +16,7 @@ class Generator:
                 if sum(self.insert) >= len(self.groups):
                     break
     def get_logic_def(self):
-        logic_def = "char read_input(char *input, int index){ return input[index]; }\n"
+        logic_def = "signed char read_input(signed char *input, int index){ return input[index]; }\n"
         return logic_def
 
     def get_logic_c(self):
@@ -24,7 +24,7 @@ class Generator:
         group_idx = 0
         for idx in range(self.size):
             if self.insert[idx] == 0:
-                logic_c.append("\t\tchar c = read_input(copy, 0);")
+                logic_c.append("\t\tsigned char c = read_input(copy, 0);")
             else:
                 copy_idx, tab_cnt = 0, 0
                 constraints, vars = set(), set()
@@ -33,9 +33,9 @@ class Generator:
                     vars = vars.union(self.vars[group_idx + cnt])
                 buggy_constraints = ""
                 for var in vars:
-                    buggy_constraints += "\t\tchar {} = read_input(copy, {});\n".format(var, copy_idx)
+                    buggy_constraints += "\t\tsigned char {} = read_input(copy, {});\n".format(var, copy_idx)
                     copy_idx += 1
-                buggy_constraints += "\t\tchar c = read_input(copy, {});\n".format(len(vars))
+                buggy_constraints += "\t\tsigned char c = read_input(copy, {});\n".format(len(vars))
                 buggy_constraints += "\t\tint flag = 0;\n"
                 for constraint in constraints:
                     buggy_constraints += "\t"*tab_cnt + "\t\tif{}{{\n".format(constraint)
