@@ -13,7 +13,7 @@ OUTDIR=$WORKDIR/outputs
 
 # Create dummy input directory
 mkdir -p $INDIR
-echo 'A' > $INDIR/seed
+echo '' > $INDIR/seed
 
 # Create configuration file
 DIRNAME=`dirname $2`

@@ -15,12 +15,12 @@ OUTDIR=$WORKDIR/outputs
 
 # Create dummy input directory
 mkdir -p $INDIR
-echo 'A' > $INDIR/seed
+echo '' > $INDIR/seed
 
 cp $1 $WORKDIR/file.c
 
 mkdir obj-aflgo; mkdir obj-aflgo/temp;
-AFLGO=/home/maze/tools/afl; SUBJECT=$PWD; TMP_DIR=$PWD/obj-aflgo/temp
+AFLGO=/home/maze/tools/aflgo; SUBJECT=$PWD; TMP_DIR=$PWD/obj-aflgo/temp
 
 ABORT_LINE=`awk '/abort*/ { print NR }' file.c`
 

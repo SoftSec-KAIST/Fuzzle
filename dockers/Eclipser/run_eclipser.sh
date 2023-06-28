@@ -17,7 +17,7 @@ TIMEOUT=$((60*$3))
 touch $WORKDIR/.start
 
 mkdir -p $INDIR
-echo 'A' > $INDIR/seed
+echo '' > $INDIR/seed
 
 MASTERBOX=$WORKDIR/afl-master-box
 SLAVEBOX=$WORKDIR/afl-slave-box

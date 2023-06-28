@@ -13,7 +13,7 @@ OUTDIR=$WORKDIR/outputs
 
 # Create dummy input directory
 mkdir -p $INDIR
-echo 'A' > $INDIR/seed
+echo '' > $INDIR/seed
 
 # Create dummy file to indicate running start
 touch $WORKDIR/.start
