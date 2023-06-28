@@ -37,8 +37,10 @@ ENV LLVM_CONFIG=llvm-config-12
 WORKDIR /home/maze/tools/afl-cov
 RUN make install
 WORKDIR /home/maze/tools/AFLplusplus
-# Check out to 3.13c
-RUN git checkout 3.13c
+
+# Check out to 4.07c
+RUN git checkout 4.07c
+
 # TODO: patch AFL++
 RUN export CC=gcc-10 && export CXX=g++-10 && make clean && \
     make distrib && make install && make clean

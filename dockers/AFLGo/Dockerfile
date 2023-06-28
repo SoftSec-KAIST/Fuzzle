@@ -4,14 +4,16 @@ FROM maze-base
 RUN apt -y install make build-essential
 
 # Install AFL++
-RUN git clone https://github.com/aflgo/aflgo.git /home/maze/tools/afl
+RUN git clone https://github.com/aflgo/aflgo.git /home/maze/tools/aflgo
 ADD aflgo.patch /home/maze/tools/aflgo.patch
-WORKDIR /home/maze/tools/afl
-# Check out to 6e87b69ab2c31177d66e1c3d0b674393cfdceec7
-RUN git checkout 6e87b69ab2c31177d66e1c3d0b674393cfdceec7
+WORKDIR /home/maze/tools/aflgo
+
+# Check out to ac9246a4fe7c0bba15e36c994c456af14d89b698
+RUN git checkout ac9246a4fe7c0bba15e36c994c456af14d89b698
+
 # TODO: patch AFLGo
 RUN patch -p1 < ../aflgo.patch
-RUN /home/maze/tools/afl/scripts/build/aflgo-build.sh
+RUN /home/maze/tools/aflgo/scripts/build/aflgo-build.sh
 
 USER maze
 
