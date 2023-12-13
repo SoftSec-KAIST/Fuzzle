@@ -24,6 +24,12 @@ using Fuzzle.
 
 For more detailed installation instructions, please see  `INSTALL.md`.
 
+## Extension for Multiple Bugs
+
+Fuzzle was modified to generate programs that contain multiple bugs for evaluating multi-target directed fuzzers. To use this version of Fuzzle, please go to [multi-target](https://github.com/SoftSec-KAIST/Fuzzle/tree/multi-target) branch of this repository.
+
+The details of the modifications can be found in the paper "On the Effectiveness of Synthetic Benchmarks for Evaluating Directed Grey-box Fuzzers" (APSEC 2023).
+
 ## Usage
 
 For a quick tutorial on how to use Fuzzle, please skip to the
