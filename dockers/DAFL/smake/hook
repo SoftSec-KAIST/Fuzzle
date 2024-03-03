@@ -1,0 +1,657 @@
+#!/usr/bin/env bash
+# Compiler command emulator for a C Analyzer
+# Author: Jaeho Shin <netj@ropas.snu.ac.kr>
+# Created: 2004-11-05
+
+Cmd=`basename "$0"`
+
+# don't use our hook commands (in the same directory) from here on
+rmPATH() {
+    PATH=${PATH/:$1:/:}
+    PATH=${PATH/#$1:/}
+    PATH=${PATH/:$1%/}
+}
+rmPATH "`cd "$(dirname "$0")" && pwd`" "`dirname "$0"`"
+
+# first, do the real job
+"$Cmd" "$@" || exit $?
+
+# and continue when successful
+
+# stop here if ./configure is in progress
+${AMAKECONFIGURE:-true} && exit 0
+
+[ -d "$AMAKEDIR" ] && exec >>"$AMAKEDIR/.smake.out" 2>&1
+
+## auxiliary pieces
+# escape strings so it can be safely used in shell commands
+esc() {
+    local a
+    for a in "$@"; do
+        a=${a//"'"/"'\\''"}
+        # XXX: wrap with ' only if $a contains unsafe chars
+        echo -n "'$a' "
+    done
+}
+
+# `add a 1 2 3 ...` means add 1, 2, 3, ... to array a
+add() {
+    local a=$1; shift
+    eval $a'=("${'$a'[@]}" "$@")'
+}
+
+# check existence of option
+hasopt() {
+    local opt="-$1"; shift
+    local found=false
+    local o
+    for o in "$@"; do
+        case "$o" in
+            $opt)
+            found=true
+            break
+            ;;
+        esac
+    done
+    $found
+}
+
+# vocabularies for option handling
+# assuming args, o, j are used
+opt() {
+    local t addoptarg=false
+    case "$1" in
+        -*)
+        if [ "$o" = "$1" ]; then
+            # -o output
+            let j++
+            OPTARG=${args[$j]}
+            addoptarg=true
+        else
+            # -ooutput
+            OPTARG=${o#$1}
+        fi
+        shift
+        ;;
+    esac
+    if $addoptarg; then
+        for t in "$@"; do
+            add $t "$o" "$OPTARG"
+        done
+    else
+        for t in "$@"; do
+            add $t "$o"
+        done
+    fi
+}
+
+# relative path of given path from base given (or $AMAKEROOT)
+# XXX: Only paths that begins with $base will work.  Not sure if we really
+#      need to find out the exact relative path with "../"s prepended..  I
+#      guess doing so will make files leak outside $AMAKEDIR.
+relpath() {
+    local p=$1
+    local base=${2:-$AMAKEROOT}
+    case "$p" in
+        /*) ;;
+        *)  p="$PWD/$p" ;;
+    esac
+    local d=`dirname "$p"`
+    local rd=`cd "$d" 2>/dev/null && pwd`
+    p="${rd:-$d}/`basename "$p"`"
+    p=${p#$base}
+    echo "${p#/}"
+}
+
+# relpath -> abspath
+realpath() {
+    case "$1" in
+        /*) echo "$1" ;;
+        *)  echo "$PWD/$1" ;;
+    esac
+}
+
+# create parent directories of given paths
+# so that we can create them directly (e.g. by redirection)
+mkpath() {
+    local p
+    for p in "$@"; do
+        mkdir -p `dirname "$p"`
+    done
+}
+
+# look for lib*.{a,so} under each $@
+findlib() {
+    local lp pfx ext l=$1; shift
+    for lp in "$@"; do
+        pfx="$lp/lib$l"
+        for ext in so a; do
+            lib="$pfx.$ext"
+            if [ -f "$lib" ]; then
+                echo "$lib"
+                return
+            fi
+        done
+    done
+}
+
+## naming conventions for tracking
+# path of tag for tracking source
+tagpath() {
+    local o=$1
+    echo "$AMAKEDIR/.tags/`relpath "$o"`"
+}
+
+# find path of corresponding source of object
+srcpath() {
+    local o=$1
+    readlink "`tagpath "$o"`"
+}
+
+# suffix for source in preprocessed form
+srcext() {
+    case "$1" in
+        c-header)                       echo .h         ;;
+        c|cpp-output)                   echo .i         ;;
+        c++|c++-cpp-output)             echo .ii        ;;
+        objective-c|objc-cpp-output)    echo .mi        ;;
+        f77|f77-cpp-input|ratfor)       echo .f         ;;
+        assembler|assembler-with-cpp)   echo .s         ;;
+        ada)                            echo .ads       ;;
+        java)                           echo .java      ;;
+        treelang)                       echo .treelang  ;;
+    esac
+}
+
+# detect language of file based on its suffix
+srctype() {
+    case "${1##*.}" in
+        c)                      echo c                  ;;
+        i)                      echo cpp-output         ;;
+        ii)                     echo c++-cpp-output     ;;
+        m)                      echo objective-c        ;;
+        mi)                     echo objc-cpp-output    ;;
+        h)                      echo c-header           ;;
+        cc|cp|cxx|cpp|c++|C)    echo c++                ;;
+        f|for|FOR)              echo f77-cpp-output     ;;
+        F|fpp|FPP)              echo f77                ;;
+        r)                      echo ratfor             ;;
+        ads|adb)                echo ada                ;;
+        S)                      echo assembler          ;;
+        s)                      echo assembler-with-cpp ;;
+#       java)                   echo java               ;;
+#       treelang)               echo treelang           ;;
+        *)                      echo none               ;;
+    esac
+}
+
+# create a srcpath for the given object of some type and tag it
+mksrc() {
+    local o=$1 t=$2
+    local s="$AMAKEDIR/`relpath "$o"``srcext "$t"`"
+    mkpath "$s"
+    echo "$s"
+    # create a tag
+    local tg=`tagpath "$o"`
+    mkpath "$tg"
+    ln -sf "$s" "$tg"
+}
+
+# remove source and tag if exists
+rmsrc() {
+    local o=$1
+    local done=false
+    local tg=`tagpath "$o"`
+    if [ -L "$tg" ]; then
+        if [ -e "$tg" ]; then
+            rm -rf "`readlink "$tg"`"
+        fi
+        unlink "$tg"
+        done=true
+    fi
+    update_target "$o"
+    $done
+}
+
+# update the existence of target
+update_target() {
+    local tgt=`relpath "$1"`
+    local files=`find "$(srcpath "$1")" -type f 2>/dev/null | wc -l`
+    (
+    cd "$AMAKEDIR"
+    if [ ${files:-0} -gt 0 ]; then
+        {
+            cat .targets 2>/dev/null
+            echo "$tgt"
+        } | sort | uniq >.targets.tmp &&
+        mv -f .targets.tmp .targets
+    else
+        # remove from target list if no files exist
+        grep -v "^$tgt$" .targets >.targets.tmp &&
+        mv -f .targets.tmp .targets
+    fi
+    )
+}
+
+## logging
+if [ -d "$AMAKEDIR" ]; then
+    output() { echo "$@"; log "$@"; }
+    log()    { echo "$@" >>"$AMAKEDIR/.smake.log"; }
+else
+    output() { :; }
+    log()    { echo "$@" >&2; }
+fi
+notfound() {
+    log "# XXX: $@ not found"
+}
+unsupported() {
+    log "# XXX: $@ not supported"
+}
+unknown() {
+    log "# XXX: $@ unknown"
+}
+
+## act like gcc
+_cc() {
+    local output= link=true noop=false ext= lang=none
+    local args cpp cc as ld lpath objs
+    args=(_cc "$@") cpp=() cc=() as=() ld=() lpath=() objs=()
+    # parse options and files
+    local o j
+    for ((j=1; $j<=$#; j++)); do
+        o=${!j}
+        [ -n "$o" ] || continue
+        case "$o" in
+            # Overall options
+            -c) link=false ext=.o ;;
+            -S) link=false ext=.s ;;
+            -E) link=false noop=true ;;
+            -v|-pipe|-pass-exit-codes) opt cc ;;
+            '--###'|--help|--target-help|\
+            -version|--version) opt cc; noop=true ;;
+            -x*) opt -x cpp cc; lang=$OPTARG ;;
+            -o*) opt -o; output=$OPTARG ;;
+
+            # Directory
+            -B*)      opt -B   cc                           ;;
+            -I*)      opt -I   cpp                          ;;
+            -L*)      opt -L   ld  ; add lpath "$OPTARG"    ;;
+            -YP,*)    opt -YP, ld  ; add lpath "$OPTARG"    ;; # SYSV
+            -specs=*) opt      cc                           ;;
+
+            # Preprocessor
+            -A*)                 opt -A                 cpp ;;
+            -D*)                 opt -D                 cpp ;;
+            -U*)                 opt -U                 cpp ;;
+            -idirafter*)         opt -idirafter         cpp ;;
+            -include*)           opt -include           cpp ;;
+            -imacros*)           opt -imacros           cpp ;;
+            -iprefix*)           opt -iprefix           cpp ;;
+            -iwithprefix*)       opt -iwithprefix       cpp ;;
+            -iwithprefixbefore*) opt -iwithprefixbefore cpp ;;
+            -isystem*)           opt -isystem           cpp ;;
+            -M|-MM)  noop=true;  opt                    cpp ;;
+            # we need no dependency files (*.d)
+            -MF*)                opt -MF ;; #           cpp ;;
+            -MT*)                opt -MT ;; #           cpp ;;
+            -MQ*)                opt -MQ ;; #           cpp ;;
+            -M[DGP]|-MMD)        opt     ;; #           cpp ;;
+            -$|-C|-CC|-H|-d[DIMN]|-nostdinc|-nostdinc++|\
+            -P|-remap|-trigraphs|-undef|-Wp,*) opt cpp ;;
+
+            # C options
+            -ansi|-std=*|-traditional|-traditional-cpp) opt cpp cc ;;
+            -aux-info*) opt -aux-info cc ;;
+
+            # Assembler
+            -Wa,*) opt as ;;
+
+            # Linker
+            -nostartfiles|-nodefaultlibs|-nostdlib|-s|\
+            -static|-static-libgcc|-shared|-shared-libgcc|\
+            -symbolic|-Wl,*) opt            ld ;;
+            -Xlinker*)       opt -Xlinker   ld ;;
+            -u*)             opt -u         ld ;;
+            -l*)             opt -l         ld ; add objs "none:-l$OPTARG" ;;
+
+            # feature, warning
+            -f*|-no-*|-pedantic|-pedantic-errors|-w|-W*) opt cc ;;
+
+            # Debugging
+            -d*|-dump*|-p|-g*|-pg|-print-*|-Q|-save-temps|-time) opt cc ;;
+
+            # Optimization
+            -O) opt cc ;;
+            -O*) opt -O cc ;;
+            --param*) opt --param cc ;;
+
+            # Target
+            -V*) opt -V cc ;;
+            -b*) opt -b cc ;;
+
+            # Machine dependent
+            -m*|-pthread|-EL|-EB|-threads|-nolibdld|\
+            -Q[yn]|-sim|-sim2)  opt         cc ;;
+            -G*)                opt -G      cc ;;
+            -Ym,*)              opt -Ym,    cc ;;
+
+            # unknown option
+            -*) unknown "cc: $o: option"; opt cc ;;
+
+            # objects or sources
+            *)
+            case "$lang" in
+                # detect lang if none
+                none) add objs "`srctype "$o"`:$o" ;;
+                *)    add objs "$lang:$o" ;;
+            esac
+        esac
+    done
+    # have we got any object or source given?
+    [ ${#objs[@]} -gt 0 ] || noop=true
+    # isn't the output of this command useless?
+    [ "$output" = /dev/null ] && noop=true
+    # stop here if nothing to do
+    $noop && return
+    copy() {
+        ln -f -- "$1" "$2"
+    }
+    generate() {
+        # preprocess and save source
+        local o=$1          # input
+        local s=$2          # srcpath
+        local f=${o#*:}     # input file (path relative to $PWD)
+        local t=${o%%:*}    # its language
+        # skip null inputs (might wanted to test the installation)
+        [ "$f" = /dev/null ] && return
+        # TODO: Can we make $f relative to $AMAKEROOT?
+        #       Since preprocessed files may contain ambiguous path..
+        #       E.g.  gcc -E a/x.c  and  gcc -E b/x.c  is OK, but
+        #       cd a; gcc -E x.c  and  cd b; gcc -E x.c  will
+        #       generate ambiguous line info.  However, doing this isn't easy
+        #       since we must deal all path related options. :(
+        case "$t" in
+            c-header) ;;
+            *cpp-output) cp -f "$f" "$s" ;;
+            c|c++)
+            rm -f "$s"
+            "$CC" -E "${cpp[@]}" "${cc[@]}" `realpath "$f"` -o "$s"
+            log "# cc: $s: preprocessed $f"
+            ;;
+            *)
+            unsupported "$s: $f: source type"
+            ;;
+        esac
+    }
+    if $link; then
+        output=${output:-a.out}
+        # gather sources that are being linked
+        log "# cc: $output: linking `esc "${objs[@]}"`"
+        local sout=`mksrc "$output" target`
+        rm -rf "$sout"; mkpath "$sout/."
+        # object number handling
+        objnumfmt() {
+            local os=`printf %x ${1:-0}`
+            local ondigits=${#os}
+            [ $ondigits -lt 1 ] && ondigits=1; let ondigits++
+            echo "%0${ondigits}x"
+        }
+        local on=0
+        local onfmt=`objnumfmt "${#objs[@]}"`
+        numbering() {
+            local what=$1; shift
+            local numbered="$sout/`printf $onfmt $on`.`basename "$what"`"
+            let on++
+            "$@" "$numbered"
+        }
+        local o f t
+        for o in "${objs[@]}"; do
+            f=${o#*:}           # path to actual file
+            t=${o%%:*}          # its language
+            case "$t" in
+                none) # an object
+                case "$f" in
+                    -l*)
+                    # find library
+                    local l=${f#-l}
+                    f=`findlib "$l" "${lpath[@]}"`
+                    if [ -f "$f" ]; then
+                        log "# cc: -l$l: found at $f"
+                    else
+                        notfound "$output: -l$l: library"
+                        continue
+                    fi
+                    ;;
+                esac
+                # gather sources of objects
+                local s=`srcpath "$f"`
+                if [ -d "$s" ]; then # archive or relocatable (executable?)
+                    local sl
+                    for sl in "$s"/*; do
+                        numbering "$sl" copy "$sl"
+                    done
+                elif [ -f "$s" ]; then # single object
+                    numbering "$s" copy "$s"
+                else
+                    notfound "$output: $f: source"
+                fi
+                ;;
+                *) # a source
+                # generate on-the-fly-object's source
+                numbering "$f`srcext "$t"`" generate "$o"
+                ;;
+            esac
+        done
+        # register as target
+        update_target "$output"
+    else
+        # generate source for each object
+        local o f t s out
+        for o in "${objs[@]}"; do
+            f=${o#*:}           # path to actual file
+            t=${o%%:*}          # its language
+            s=`srcpath "$f"`    # source of $f
+            out=${output:-`basename "${f%.*}$ext"`}
+            if [ -f "$s" ]; then
+                # if there is a source for $f already, then just copy it
+                # e.g. generating "a.s" by `gcc -S a.c`, and then
+                # "a.o" by `gcc -c a.s`: "a.o" needs to keep track of "a.c".
+                copy "$s" "`mksrc "$out" $(srctype "$s")`"
+            else
+                generate "$o" "`mksrc "$out" "$t"`"
+            fi
+        done
+    fi
+}
+
+## act like assembler
+_as() {
+    local args asms noop=false output=a.out
+    args=(_as "$@") asms=()
+    # gather options and files
+    local o j
+    for ((j=1; $j<=$#; j++)); do
+        o=${!j}
+        [ -n "$o" ] || continue
+        case "$o" in
+            # TODO: sophisticated option detecting
+            -o*) opt -o; output=$OPTARG ;;
+            *) [ -f "$o" ] && opt asms || unsupported "as: $o: option" ;;
+        esac
+    done
+    # have we got any asm given?
+    [ ${#asms[@]} -gt 0 ] || noop=true
+    # stop here if nothing to do
+    $noop && return
+    # if we have all source of asms
+    local all=true f s ss
+    ss=()
+    for f in "${asms[@]}"; do
+        s=`srcpath "$f"`
+        if ! [ -f "$s" ]; then
+            all=false
+            break
+        fi
+        add ss "$s"
+    done
+    if $all; then
+        # place them as a single source
+        local sout=`mksrc "$output" $(srctype "${#ss[0]}")`
+        # XXX: assuming types of sources of asms are all the same
+        if [ ${#ss[@]} -eq 1 ]; then
+            ln -f -- "${ss[@]}" "$sout"
+        else
+            cat "${ss[@]}" >"$sout"
+        fi
+        log "# as: $sout: assembled ${ss[@]}"
+    else
+        notfound "as: $output: complete sources of asm"
+    fi
+}
+
+## act like linker
+_ld() {
+    local args ccargs noop=false
+    args=(_as "$@") ccargs=()
+    # gather meaningful arguments for _cc
+    local o j
+    for ((j=1; $j<=$#; j++)); do
+        o=${!j}
+        [ -n "$o" ] || continue
+        case "$o" in
+            -o*) opt -o ccargs ;;
+            -l*) opt -l ccargs ;;
+            -L*) opt -L ccargs ;;
+            -Y*) opt -Y; o="-L$OPTARG"; opt ccargs ;;
+            -Tbss*)  opt -Tbss  ;;
+            -Ttext*) opt -Ttext ;;
+            -Tdata*) opt -Tdata ;;
+            -T*)        opt -T       ;; # ld script
+            # TODO: better handling of these multi-flavors of same option
+            -script=*)  opt -script=    ;;
+            -script*)   opt -script     ;;
+            --script=*) opt --script=   ;;
+            --script*)  opt --script    ;;
+            # TODO: sophisticated option detecting
+            *) [ -f "$o" ] && opt ccargs || unsupported "ld: $o: option" ;;
+        esac
+    done
+    # stop here if nothing to do
+    $noop && return
+    # use _cc to handle the rest
+    _cc "${ccargs[@]}"
+}
+
+_ar() {
+    # maintain a list of sources that constitute the archive
+    has() { [ "$1" != "${1/$2//}" ]; }
+    if has $1 r || hasopt r "$@"; then
+        # XXX: Currently, only "ar ..r.. ..." style commands
+        #      (i.e. replace members) are supported. :(
+        local a=$2; shift 2
+        local sout=`mksrc "$a" archive`
+        mkpath "$sout/."
+        local o
+        for o in "$@"; do
+            local s=`srcpath "$o"`
+            if [ -d "$s" ]; then
+                # archiving another archive or relocatable? impossible!
+                # XXX: NO! actually one may archive an object which was linked
+                # incrementally :( TODO: copy $s/*.  might need numbering,
+                # which will require checking of replacements.
+                log "# XXX: $a: not archiving $o"
+            elif [ -f "$s" ]; then
+                ln -f -- "$s" "$sout"
+                log "# ar: $a: adding $o"
+            else
+                notfound "$a: $o: source"
+            fi
+        done
+        update_target "$a"
+    else
+        unsupported "ar: mode $1"
+    fi
+}
+
+# record hooked command
+output "cd `esc "$PWD"`"
+output "`esc $Cmd "$@"`"
+
+## command detection
+case "$Cmd" in
+    # capture the rules for compiling, assemblying and linking
+    *cc|*g++) CC="gcc" _cc "$@" ;;
+    *clang*) CC="clang" _cc "$@" ;;
+    wllvm) CC="wllvm" _cc "$@" ;;
+    *as) _as "$@" ;;
+    *ld) _ld "$@" ;;
+    *ar) _ar "$@" ;;
+
+    cp|ln|mv|rm)
+    # gather options and arguments
+    opts=() files=()
+    endofopts=false
+    for o in "$@"; do
+        if $endofopts; then
+            files=("${files[@]}" "$o")
+        else
+            case "$o" in
+                --) endofopts=true ;;
+                # TODO: skip useless (e.g. -i) options?
+                -*) opts=("${opts[@]}" "$o") ;;
+                *) files=("${files[@]}" "$o") ;;
+            esac
+        fi
+    done
+    # bookkeeping by applying the same command to corresponding sources
+    case "$Cmd" in
+        rm) # remove (for all)
+        for f in "${files[@]}"; do
+            rmsrc "$f" && log "# bookkeep: rm $t $dest"
+        done
+        ;;
+        *) # moving/copying around (pair-wise with last)
+        dest="${files[$((${#files[@]} - 1))]}"
+        # for each pair among files and destination
+        for src in "${files[@]}"; do
+            # $src and $dst are the actual files,
+            # while $s and $d are the corresponding sources
+            # TODO: what about .targets?  consider this:
+            #         gcc -o a.out <some files>; mv a.out exe1
+            #         gcc -o a.out <more files>; mv a.out exe2
+            #       does exe1, exe2 get listed?
+            dst=$dest
+            [ "$src" = "$dst" ] && continue
+            #  (append its implied filename if $dst is directory)
+            [ -d "$dst" ] && dst="$dst/`basename "$src"`"
+            # we don't need the previous source of $dst
+            rmsrc "$dst"
+            # without the source of $src beyond this point is meaningless
+            s=`srcpath "$src"`
+            [ -e "$s" -o -L "$s" ] || continue
+            # handle some special cases
+            moreopts=(-f)
+            case "$Cmd" in
+                ln)
+                # prevent hard-linking a directory
+                [ -d "$s" ] && moreopts=("${moreopts[@]}" -s)
+                ;;
+                cp)
+                # copy recursively if source is a directory
+                [ -d "$s" ] && moreopts=("${moreopts[@]}" -r)
+                ;;
+            esac
+            # prepare a new source for $dst (same type as $s)
+            d=`mksrc "$dst" $(srctype "$s")`
+            mkpath "$d"
+            # finally, apply the same command to the source pair
+            $Cmd "${moreopts[@]}" "${opts[@]}" -- "$s" "$d"
+            log "# bookkeep: $Cmd $s $d"
+        done
+        ;;
+    esac
+    ;;
+esac
+
+# don't disturb the make process
+true

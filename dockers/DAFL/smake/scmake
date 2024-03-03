@@ -1,0 +1,150 @@
+#!/usr/bin/python3
+
+import sys
+import json
+import shutil
+import argparse
+import subprocess
+from pathlib import Path
+
+
+def mkdir_safe(dir_p: Path):
+    ''' Make directory safely
+
+    Create `dir_p`.
+    If `dir_p` already exists, user can choose to overwrite or not.
+
+    Args:
+        dir_p: Path of the directory to be created
+
+    Returns:
+        True if success else False
+    '''
+
+    if not dir_p.exists():
+        dir_p.mkdir()
+    else:
+        sel = input(
+            f"{str(dir_p)} already exists.\n"
+            "Overwrite it?(y/n): "
+        )
+        if sel.lower() == 'y':
+            shutil.rmtree(dir_p)    # delete existing one
+            dir_p.mkdir()
+        else:
+            return False
+    return True
+
+
+def replace(file_p: Path, cmd: str):
+    ''' Generate preprocessing command from the compiling command
+
+    Args:
+        file_p: Path of the C source code
+        cmd: Compile command
+
+    Returns:
+        Preprocessing command splitted into list
+    '''
+
+    new_cmd = []
+    file = str(file_p)
+
+    for tok in cmd.split():
+        if tok == "-c":
+            new_cmd.append("-E")
+        elif tok.endswith('.c'):
+            new_cmd.append(file)
+        elif tok.endswith('.o'):
+            new_cmd.append(file + ".i")
+        else:
+            new_cmd.append(tok)
+    return new_cmd
+
+
+def cmake(out_dir_p: Path):
+    ''' Do CMake and create "compile_commands.json"
+
+    Do CMake and save the result into the `out_dir_p`.
+    "compile_commands.json" would be generated into the curret directory.
+
+    Args:
+        out_dir_p: Directory path for saving the CMake result
+
+    Returns:
+        True if success else False
+
+    Raise:
+        subprocess.CalledProcessError: CMake has been failed
+    '''
+
+    if not mkdir_safe(out_dir_p):
+        return False
+
+    # enable "CMAKE_EXPORT_COMPILE_COMMANDS" to generate "compile_commands.json"
+    subprocess.run(
+        "cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 ..".split(), cwd=out_dir_p, check=True)
+    return True
+
+
+def scmake(out_dir_p: Path):
+    ''' Create preprocessed files and move them into the output directory
+
+    Args:
+        out_dir_p: Directory path for saving the scmake result
+
+    Returns: None    
+    '''
+
+    cwd = Path().cwd()
+
+    with open("./compile_commands.json", "r") as f:
+        compilation_db = json.load(f)
+
+    # create output directory
+    if not mkdir_safe(out_dir_p):
+        return False
+
+    ''' preprocess and move the result file into the output directory.
+        it maintains the directory structure.
+        e.g. file_p: /src/libssh-0.9.2/src/token.c ->
+             out_p: /src/libssh-0.9.2/sparrow/src/token.i
+    '''
+    for entry in compilation_db:
+        file_p = Path(entry['file'])   # translation unit
+        preprocessed_p = file_p.parent / (file_p.name+".i")  # preprocessed
+        out_name = file_p.stem + ".i"
+        out_p = out_dir_p / \
+            file_p.relative_to(cwd).parent / out_name   # output
+        print(f"{file_p} -> {out_p}")
+
+        # generate preprocessing command from the compiling command
+        cmd = replace(file_p, entry['command'])
+
+        # preprocess
+        subprocess.run(
+            cmd, cwd=entry['directory'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
+
+        # move preprocessed file into the output directory
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        preprocessed_p.rename(out_p)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cmake", action="store_true",
+                        default=False, help="cmake under CMAKE_OUT")
+    parser.add_argument("--cmake-out", default="build",
+                        help="set cmake directory (default: build)")
+    parser.add_argument("--out", const="sparrow", default="sparrow",
+                        nargs="?", help="initialize output directory (default: sparrow)")
+
+    args = parser.parse_args()
+    cmake_out_p = Path(args.cmake_out).absolute()
+    scmake_out_p = Path(args.out).absolute()
+
+    cmake(cmake_out_p)
+    if args.cmake:  # only cmake
+        sys.exit(-1)
+
+    scmake(scmake_out_p)
